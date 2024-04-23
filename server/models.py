@@ -19,11 +19,19 @@ class Hero(db.Model, SerializerMixin):
     super_name = db.Column(db.String)
 
     # add relationship
+    superpowers = db.relationship('Power', secondary='hero_powers', backref='superheroe')
 
     # add serialization rules
-
+    serialize_rules = ('id', 'name', 'super_name', 'superpowers')
+    
+    
     def __repr__(self):
-        return f'<Hero {self.id}>'
+        return f"Hero(id={self.id}, name='{self.name}', super_name='{self.super_name}', created_at='{self.created_at}', updated_at='{self.updated_at}')"
+    
+
+    
+
+    
 
 
 class Power(db.Model, SerializerMixin):
@@ -34,26 +42,53 @@ class Power(db.Model, SerializerMixin):
     description = db.Column(db.String)
 
     # add relationship
+    superheroes = db.relationship('Hero', secondary='hero_powers', backref='powers')
+    
 
     # add serialization rules
+    serialize_rules = ('id', 'name', 'description')
 
     # add validation
+    @validates('description')
+    def validate_description(self, key, value):
+        if not value:
+            raise ValueError("Description must be present")
+        if len(value) < 20:
+            raise ValueError("Description must be at least 20 characters long")
+        return value
 
     def __repr__(self):
-        return f'<Power {self.id}>'
+        return f"Power(id={self.id}, name='{self.name}', description='{self.description}', created_at='{self.created_at}', updated_at='{self.updated_at}')"
 
+
+from sqlalchemy_serializer import SerializerMixin
 
 class HeroPower(db.Model, SerializerMixin):
-    __tablename__ = 'hero_powers'
+    __tablename__ = "hero_powers"
 
     id = db.Column(db.Integer, primary_key=True)
-    strength = db.Column(db.String, nullable=False)
+    strength = db.Column(db.String)
+    hero_id = db.Column(db.Integer, db.ForeignKey('heroes.id'))
+    power_id = db.Column(db.Integer, db.ForeignKey('powers.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # add relationships
+    # Define relationships
+    hero = db.relationship('Hero', backref=db.backref('hero_powers', cascade='all, delete-orphan'))
+    power = db.relationship('Power', backref=db.backref('power_heroes', cascade='all, delete-orphan'))
 
-    # add serialization rules
+    # Define serialization rules
+    serialize_rules = ('id', 'strength', 'hero_id', 'power_id', 'created_at', 'updated_at')
 
-    # add validation
+    # Define validation
+    @validates('strength')
+    def validate_strength(self, key, value):
+        valid_strengths = ['Strong', 'Weak', 'Average']
+        if value not in valid_strengths:
+            raise ValueError("Invalid strength value")
+        return value
 
     def __repr__(self):
-        return f'<HeroPower {self.id}>'
+        return f"HeroPower(id={self.id}, strength='{self.strength}', hero_id={self.hero_id}, power_id={self.power_id}, created_at='{self.created_at}', updated_at='{self.updated_at}')"
+    
+
